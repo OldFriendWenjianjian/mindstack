@@ -66,11 +66,15 @@ def audio_soup(x, sr):
     mag = np.abs(np.fft.rfft(np.reshape(x[: (n // 1024) * 1024], (-1, 1024))
                              * np.hanning(1024), axis=1))
     flux = float(np.mean(np.maximum(0, np.diff(mag, axis=0)).sum(axis=1))) if len(mag) > 1 else 0.0
-    # 8 log-band energies
-    edges = np.array([30, 80, 200, 500, 1200, 3000, 7500, 12000, 20000])
+    # 8 log-band energies (band edges clipped to Nyquist so no band is empty)
+    ny = sr / 2
+    lo = np.array([30, 80, 200, 500, 1200, 3000, 7500, 12000], dtype=float)
+    hi = np.array([80, 200, 500, 1200, 3000, 7500, 12000, 20000], dtype=float)
+    hi = np.minimum(hi, ny * 0.999)
+    lo = np.minimum(lo, hi - 1.0)  # keep every band non-empty
     bands = []
     for i in range(8):
-        m = (freqs >= edges[i]) & (freqs < edges[i + 1])
+        m = (freqs >= lo[i]) & (freqs < hi[i])
         bands.append(round(float(np.sqrt(np.mean(spec[m]) + 1e-9)), 3))
     # spectrogram patch 8x8 (log energy over 8 log-bands x 8 time frames)
     hop = max(1, (n // 1024) // 8)
