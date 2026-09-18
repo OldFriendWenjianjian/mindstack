@@ -21,11 +21,14 @@ from mind.client import ask
 
 
 class Loop:
-    def __init__(self, adapter, reflex, prompt, name="loop"):
+    def __init__(self, adapter, reflex, prompt, name="loop", voice=False,
+                 max_say_chars=220):
         self.adapter = adapter      # read() -> [(data, meta)]; act(cmds)
-        self.reflex = reflex        # sample -> (level, action, reason)
+        self.reflex = reflex        # allows(cmd) veto + check(sample)
         self.prompt = prompt        # system prompt for the cloud model
         self.name = name
+        self.voice = voice          # True = speak `say` aloud via TTS
+        self.max_say_chars = max_say_chars
         self.last_feedback = None
 
     # ---- one full cycle ----
@@ -79,6 +82,19 @@ class Loop:
                                   if c not in allowed]
         if allowed:
             self.adapter.act(allowed)
+
+        # 6. speak: route `say` through the voice backend when enabled
+        if self.voice and out.get("say"):
+            try:
+                from senses.voice import speak
+                text = out["say"][:self.max_say_chars]
+                b, wav = speak(text, play_audio=False)
+                out["voice"] = {"backend": b, "wav": wav}
+                if say:
+                    print(f"[{self.name} speaks] {text}")
+            except Exception as e:
+                out["voice"] = {"error": str(e)}
+
         if say and out.get("say"):
             print(f"[{self.name}] {out['say']}")
         self.last_feedback = out
