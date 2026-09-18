@@ -90,6 +90,7 @@ class JointAdapter:
     def poll_reflexes(self, reflex):
         """Drain pending telemetry; run classify() per sample; execute
         reflex actions immediately. Returns events for the report."""
+        self._stub_drained = False
         events = []
         while self._pending():
             line = self._next_line()
@@ -103,12 +104,15 @@ class JointAdapter:
         return events
 
     def _pending(self):
-        return len(self.buffer) < 4     # demo stub; real: serial.in_waiting
+        if self.serial:
+            return self.serial.in_waiting > 0
+        return not self._stub_drained      # stub: one synthetic line per poll
 
     def _next_line(self):
         if self.serial:
             return self.serial.readline().decode(errors="replace").strip()
         import time as _t
+        self._stub_drained = True
         return ("st=3 ang=ol pwm=1 vbus=48.2 id=-0.01 iq=0.49 vd=0.8 vq=1.6 "
                 "mod=0.04 vuv=1.2 iu=0.23 iv=-0.26 enc=0 rpm_ol=400 "
                 f"isr={int(_t.time()*1000) % 100000}")
