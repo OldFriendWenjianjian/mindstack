@@ -1,0 +1,22 @@
+{
+  "name": "Smoke on the Water (intro riff, simplified)",
+  "type": "riff",
+  "bpm": 112,
+  "loop": false,
+  "tolerance_cents": 60,
+  "tolerance_ms": 120,
+  "events": [
+    {"t": 0.000, "midi": 64, "dur": 0.27, "label": "E (open), 6th string"},
+    {"t": 0.536, "midi": 67, "dur": 0.27, "label": "G, 3rd fret 6th string"},
+    {"t": 1.071, "midi": 70, "dur": 0.54, "label": "Bb, 6th fret 6th string"},
+    {"t": 1.875, "midi": 64, "dur": 0.27, "label": "E (open), 6th string"},
+    {"t": 2.411, "midi": 70, "dur": 0.27, "label": "Bb, 6th fret 6th string"},
+    {"t": 2.946, "midi": 67, "dur": 0.54, "label": "G, 3rd fret 6th string"},
+    {"t": 3.750, "midi": 64, "dur": 0.27, "label": "E (open), 6th string"},
+    {"t": 4.286, "midi": 67, "dur": 0.27, "label": "G, 3rd fret 6th string"},
+    {"t": 4.821, "midi": 70, "dur": 0.27, "label": "Bb, 6th fret 6th string"},
+    {"t": 5.357, "midi": 64, "dur": 0.54, "label": "E (open), 6th string"},
+    {"t": 6.161, "midi": 70, "dur": 0.54, "label": "Bb, 6th fret 6th string"},
+    {"t": 6.964, "midi": 67, "dur": 0.54, "label": "G, 3rd fret 6th string"}
+  ]
+}

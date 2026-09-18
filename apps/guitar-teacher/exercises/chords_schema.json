@@ -1,0 +1,19 @@
+{
+  "name": "Em chord strum, whole notes",
+  "type": "chords",
+  "bpm": 60,
+  "loop": false,
+  "tolerance_cents": 70,
+  "tolerance_ms": 150,
+  "events": [
+    {"t": 0.0, "type": "chord", "chroma": "Em", "dur": 2.0,
+     "chroma_target": {"E": 1.0, "B": 0.67, "G": 0.33, "D": 0.0, "A": 0.0, "C": 0.0, "F": 0.0, "F#": 0.0, "G#": 0.0, "A#": 0.0, "C#": 0.0, "D#": 0.0},
+     "label": "Em: 022000"},
+    {"t": 4.0, "type": "chord", "chroma": "C", "dur": 2.0,
+     "chroma_target": {"C": 1.0, "E": 1.0, "G": 0.5, "B": 0.0, "D": 0.0, "A": 0.0, "F": 0.0, "F#": 0.0, "G#": 0.0, "A#": 0.0, "C#": 0.0, "D#": 0.0},
+     "label": "C: x32010"},
+    {"t": 8.0, "type": "chord", "chroma": "G", "dur": 2.0,
+     "chroma_target": {"G": 1.0, "B": 0.67, "D": 0.33, "E": 0.0, "A": 0.0, "C": 0.0, "F": 0.0, "F#": 0.0, "G#": 0.0, "A#": 0.0, "C#": 0.0, "D#": 0.0},
+     "label": "G: 320003"}
+  ]
+}

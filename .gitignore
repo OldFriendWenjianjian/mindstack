@@ -1,0 +1,12 @@
+# secrets & local artifacts
+.env
+*.key
+_config.yml
+session.jsonl
+__pycache__/
+*.pyc
+.pytest_cache/
+audio_test/*.wav
+apps/audio_test/*.wav
+apps/*.mp4
+build/
