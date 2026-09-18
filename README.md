@@ -1,176 +1,127 @@
-# MindStack
+# MindStack · 心智栈
 
-A layered robot-mind architecture: hardwired reflexes at the bottom,
-cheap deterministic senses above them, and LLM deliberation at the top —
-local when it's small and fast, cloud (GLM) when it's deep. One shared
-architecture, several "apps" that are really just different senses
-plugged into the same stack:
+**English** | [中文](#中文)
 
-- **Guitar teacher** — listens to you play, grades pitch/timing/chords
-  instantly, and the cloud teacher prescribes drills.
-- **Movie companion** — watches a film with you, follows the shot
-  structure, describes storyline and emotional arc.
-- **Cat companion** — watches a kitten-cam, detects her active moments,
-  reads her mood from frames, and stays silent (and free) while she sleeps.
-- **Joint guardian** — supervises FOC motor joints (STM32 + real motor
-  firmware): hardwired safety reflexes with zero model involvement, and
-  an advisory cloud analyst that can never touch the controls.
+A general-purpose AI companion architecture: one small model on your own
+GPU turns camera / microphone / motor-joint / any-sensor signals into a
+compact "feature soup", the cloud big model (GLM-5.3-Flash) reads the
+soup and sends back feedback as actions, and hardwired reflexes keep
+everything safe with zero model involvement.
 
-## The architecture
+One loop. Any device. Sensors are the only interface.
 
-The design copies the layering of the human nervous system: never spend
-a slow, expensive layer on anything a faster, cheaper layer can own.
+---
+
+## 中文
+
+一套通用 AI 伙伴架构：本地 GPU 上的小模型把摄像头、麦克风、电机关节、
+任何传感器的原始信号提炼成一份"特征汤"（feature soup），云端大模型
+（GLM-5.3-Flash）读取特征汤、以 JSON 动作指令的形式反馈回来，
+而硬编码的"脊髓反射"负责安全兜底——完全不需要任何模型参与。
+
+一套循环，接任何设备。传感器就是唯一的交互界面。
+
+## The architecture · 架构
 
 ```
-                 ┌─────────────────────────────────────────────┐
-  deliberate     │  CLOUD (GLM, slow ~1-30s, sees summaries)   │  teacher,
-  (cortex)       │  storyline · drills · trends · advisory     │  analyst
-                 └───────────────▲─────────────────────────────┘
-                                 │ distilled facts only, never raw streams
-                 ┌───────────────┴─────────────────────────────┐
-  assist         │  LOCAL LLM (1-14B on your GPU, <1s)         │  optional
-  (System 1)     │  rephrasing · triage · routing              │
-                 └───────────────▲─────────────────────────────┘
-                                 │
-        ┌────────────────────────┼─────────────────────────┐
-        │               ┌────────┴────────┐                │
-  sense          │  SENSES (deterministic DSP/CV, ms, no model)│  salience /
-  (brainstem)    │  YIN pitch · chroma · spectral flux         │  colliculus
-                 │  motion energy · scene cuts · region gaze   │
-                 └───────────────▲─────────────────────────────┘
-                                 │ events + features only
-                 ┌───────────────┴─────────────────────────────┐
-  reflex         │  REFLEX POLICY (pure functions, <1ms)       │  RESPONDS:
-  (spinal cord)  │  current/heat/stall/bus limits ->           │  pwm_off,
-                 │  immediate safe actions, no network needed  │  iq_zero
-                 └─────────────────────────────────────────────┘
+ camera(s) ─┐
+ mic(s) ────┤   ┌──────────────┐   feature    ┌───────────────────┐
+ joints ────┼──>│ LOCAL MODEL  │──> soup ───> │ CLOUD GLM-5.3-Flash│
+ sensors ───┘   │ (GPU, small) │   (JSON,     │  feedback: thought │
+                └──────────────┘    cheap)    │  say + actions[]   │
+                       ▲                      └─────────┬─────────┘
+                       │                                │ actions
+                ┌──────┴───────┐                                │
+                │ REFLEXES     │  veto / override, <1ms         │
+                │ (spinal cord)│<───────────────────────────────┘
+                └──────┬───────┘
+                       ▼
+                 actuators (amp, motor, video-gen, ...)
 ```
 
-### The rules that make it work
-
-1. **Data moves up only as distilled summaries.** The deliberator never
-   sees raw audio, frame streams, or 4 Hz telemetry — it sees the
-   coach's verdict list, the shot descriptions, the 30-second telemetry
-   digest. Tokens stay bounded no matter how long the session runs.
-2. **Events move down only as gain.** Higher layers don't take over
-   lower ones; they bias them (like top-down attention): which region to
-   grab frames from, which faults matter, whether to escalate at all.
-3. **Reflexes are non-negotiable.** Safety actions come from pure
-   functions of the current sensor sample. No model call, no network,
-   no queue. `classify(sample) -> action` is the whole contract, and it
-   would keep the robot safe with every LLM on Earth offline.
-4. **The deliberator has zero actuation authority.** It advises; humans
-   and reflexes act. This is the safety boundary, and it's structural —
-   not a promise in a prompt.
-5. **Attention gates the expensive path.** A sleeping kitten, a silent
-   guitar, a healthy motor all produce *no model calls*. Salience
-   detectors (motion bursts, faults, stalls) are the only things that
-   wake the mind. This mirrors the brain's own economy and it's why a
-   24/7 companion is affordable.
-
-### Why not just "an app that calls GPT"?
-
-Because latency, cost, and safety have structure:
-
-| concern | naive LLM app | mindstack |
+| Layer · 层 | What · 职责 | Model? · 用模型吗 |
 |---|---|---|
-| a stalling motor (50 ms to act) | round-trip to an LLM | reflex function, <1 ms |
-| watching video for 8 h | per-frame calls: $$$$ | per-salient-event: cents |
-| "why does my G buzz?" | generic chat | coach facts + session history in context |
-| movie storyline | send 1000 frames | 12 shot descriptions |
-| local/offline mode | none | senses+reflexes keep working; local LLM optional |
+| Reflexes · 脊髓反射 | hardwired safety: stall / overcurrent / howl / VRAM watch → immediate action. Pure functions, work offline · 硬编码安全：堵转/过流/啸叫/显禁看门狗，纯函数、离线可用 | never · 永不 |
+| Soup · 特征汤 | GPU feature extraction: spectra, motion energy, telemetry stats — bounded tokens regardless of input length · GPU 特征提取：频谱、运动能量、遥测统计，令牌数恒定 | small local only · 仅本地小模型 |
+| Mind · 大脑 | read soup → judge → `{"thought", "say", "actions"}`; strict JSON contract, violations dropped · 读汤→判断→严格 JSON 契约，违规即弃 | cloud GLM · 云端 |
+| Memory · 记忆 | session JSONL logs; recent history re-enters context each session · 会话日志，历史重入上下文 | free · 免费 |
 
-## Repository layout
+### Safety boundary · 安全边界
 
-```
-mindstack/
-├── senses/          deterministic perception, no models
-│   └── vision.py      VideoScan: motion energy, scene cuts, segments,
-│                      region-of-motion gaze, JPEG keyframe export
-├── reflex/          (per-app hardwired policies live with their app;
-│   └── ...            joint_app.classify is the reference example)
-├── mind/
-│   └── client.py    one LLM interface: local routing, cloud GLM,
-│                     vision frames, reasoning-budget retry
-├── apps/
-│   ├── guitar-teacher/   hearing sense + coach + teacher (full app, tests)
-│   ├── movie_app.py      video -> shots -> storyline/emotion
-│   ├── cat_app.py        kitten-cam: motion bursts -> mood readings
-│   ├── joint_app.py      FOC joint telemetry -> reflex actions + advisor
-│   ├── make_test_movie.py / make_test_cat.py   ground-truth generators
-│   └── guitar-teacher/README.md                app-specific setup
-└── tests/           reflex/parser unit tests (real firmware line format)
-```
+The deliberator is **advisory-only, structurally**: reflexes are pure
+functions with actuation authority; the LLM can propose, reflexes
+dispose. `classify(sample) -> action` would keep the robot safe with
+every network and model dead. · 大模型在结构上只有建议权：反射是拥有
+执行权的纯函数。断网断模型，机器人依然安全。
 
-## The FOC connection
+## Do I need to train it? · 需要训练吗？
 
-`joint_app.py` speaks the real telemetry protocol of the STM32G473
-UE6815 FOC firmware that lives in this workspace
-(`st= ang= pwm= vbus= id= iq= vd= vq= mod= ...` at 4 Hz over USART1,
-115200 8N1). The reflex limits are derived from that motor's actual
-numbers: software iq clamp 8 A (reflex trips at 6 A), field-weakening
-edge −10 A, SVPWM modulation ceiling 0.97, 48 V nominal bus. A
-supervisor process opens the CH340 serial port, feeds lines to
-`JointSupervisor.feed()`, and executes the returned actions
-(`pwm_off` / `iq_zero`) as serial commands — fast enough that a stalled
-or overheating joint is cut before damage, with the cloud analysis
-arriving seconds later to explain why.
+**No, to start.** The cloud model already "went to school" (pretraining);
+the soup is hand-written math; reflexes are deliberately unlearned.
+Teaching it is like teaching a kid, cheapest method first:
 
-Extending to tactile/heat sensors is deliberately boring: their ADC
-channels appear in telemetry tokens, `classify()` gains two limit
-checks, done. The spinal cord doesn't need a model upgrade.
+| Teach a child · 教孩子 | Teach this system · 教这套系统 | Cost · 成本 |
+|---|---|---|
+| Talk to him · 说话引导 | system prompt（角色、规则）| free · 免费 |
+| Demonstrate · 示范 | examples in the prompt（好的/坏的反馈示例）| free · 免费 |
+| He remembers · 他会记得 | session logs re-read as memory · 会话日志即记忆 | free · 免费 |
+| Habits over months · 养成习惯 | retrieval over logs · 日志检索 | small build · 小改动 |
+| School · 上学 | QLoRA fine-tune a local model on *your* videos + teacher-style labels（用你的录像+教师评语微调本地模型，几百段即可）| hours · 数小时 |
 
-## Running
+Key difference from a baby: an LLM **learns inside a conversation and
+forgets at its end** — day-to-day "teaching" is prompting + logs.
+Fine-tune only when a specific repeated failure survives good prompts.
+· 与婴儿的关键区别：大模型在对话内学习、对话结束即遗忘——日常"教"
+就是写好提示词+攒日志。只有当好提示词也治不了某个反复出现的毛病时，
+才值得微调。
+
+## Run · 运行
 
 ```bash
-pip3 install numpy scipy soundfile pytest opencv-python-headless pillow requests
+pip3 install numpy scipy soundfile pytest opencv-python-headless pillow requests torch
 
-# cloud key (or export GLM_API_KEY=...)
-# key is auto-read from ZCode config if present
+# cloud key: export GLM_API_KEY=...   (or auto-read from ZCode config · 自动读取)
+# local assist (optional · 可选):
+#   export LOCAL_LLM_URL=http://127.0.0.1:11434/v1   # Ollama
+#   ollama pull qwen3:14b        # fits a 16GB GPU · 16GB 显存即可
 
-# optional local assist layer:
-#   export LOCAL_LLM_URL=http://127.0.0.1:11434/v1   (Ollama)
-#   export LOCAL_LLM_MODEL=qwen3:14b
-
-# guitar
-python3 apps/guitar-teacher/teacher.py demo
-python3 apps/guitar-teacher/teacher.py live apps/guitar-teacher/exercises/riff_schema.json
-
-# movie companion
-python3 apps/movie_app.py my_movie.mp4
-
-# cat companion (file or live camera)
-python3 apps/cat_app.py kitten_clip.mp4
-python3 apps/cat_app.py /dev/video0 --live
-
-# tests
-python3 -m pytest tests/ apps/guitar-teacher/tests -q
+# tests · 测试
+python3 -m pytest tests/ -q
 ```
 
-## Status & honest limits
+### One loop, any device · 一套循环，接任何设备
 
-Verified on this machine, end to end: guitar grading (7 tests, all
-fault classes), movie scan on a ground-truth synthetic film (cuts at
-4.0/8.0 s found exactly; coherent storyline back from GLM), cat window
-detection + mood reading, joint reflex policy (10 tests) + real cloud
-consult. **Not yet verified on real hardware**: live mic guitar input,
-a real kitten-cam, and the serial-link joint supervisor — the code paths
-are implemented but were exercised with synthetic signals only, because
-this build box has no microphone, camera, or motor attached.
+```python
+from mind.loop import Loop
+from adapters import AmpAdapter, AmpReflex      # or JointAdapter, VideoGenAdapter
 
-Local-LLM layers (`qwen3:14b` via Ollama fits a 16 GB GPU) are optional
-everywhere; without them everything still works, just with rule-based
-wording and cloud-only deliberation.
+loop = Loop(AmpAdapter(mic_source), AmpReflex(),
+            "You are my amp assistant. Watch levels, protect the speakers.")
+loop.cycle(question="How does the amp look?")
+```
 
-## Adding a new sense
+A new device = one adapter (`read()` + `act()`, ~30 lines) + a reflex
+policy + a role prompt. No new app. · 接一个新设备 = 写一个适配器
+（read + act，约 30 行）+ 一条反射策略 + 一段角色提示词。不需要新应用。
 
-1. Write the deterministic feature extractor in `senses/` (pure
-   numpy/cv2, milliseconds, no network).
-2. Write the salience rule: what event makes this sense worth a model
-   call?
-3. Write the distillation: what 10-line summary does the deliberator
-   need?
-4. Only then touch `mind/client.py` — usually not at all.
+## Status · 状态
 
-If a safety action exists, it belongs in a reflex function, not in a
-prompt.
+Verified: soup extraction (audio/video/telemetry), loop mechanics with
+reflex veto (20 tests), joint reflexes against the real STM32 firmware
+telemetry format, cloud feedback round-trips. Live mic / real camera /
+real serial bring-up happens on the target PC — this build box has none
+attached.
+
+已验证：特征汤提取（音频/视频/遥测）、含反射否决的循环机制（20 项测试）、
+关节反射对齐真实 STM32 固件遥测格式、云端反馈往返。实时麦克风/真实摄像头/
+真实串口联调需在目标机器上进行——当前构建机未接这些硬件。
+
+## Honest limits · 如实说明
+
+- The cloud model advises; it cannot act on hardware directly. This is
+  by design. · 云端模型只提供建议，不能直接操作硬件——这是设计使然。
+- Reflex thresholds are hand-tuned defaults; tune them to your hardware
+  before trusting them. · 反射阈值是手工默认值，请按你的硬件调整后再信任。
+- The soup is classic DSP/CV. Swapping in a learned encoder later is an
+  upgrade path, not a requirement. · 特征汤目前是经典 DSP/CV，日后可换
+  学习型编码器，但并非必需。
